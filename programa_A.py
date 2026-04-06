@@ -3,9 +3,7 @@ import threading
 import time
 from datetime import datetime
 
-# ===============================
 # CONFIGURAÇÃO
-# ===============================
 MIRTH_HOST = "127.0.0.1"
 MIRTH_PORTA_PEDIDO = 5100
 
@@ -15,7 +13,6 @@ PORTA_RELATORIO = 6001
 MLLP_START = b"\x0b"
 MLLP_END = b"\x1c\x0d"
 
-# Contador de mensagens para IDs únicos
 _msg_counter = 0
 
 def gerar_msg_id():
@@ -26,9 +23,7 @@ def gerar_msg_id():
 def gerar_order_id():
     return f"EX{datetime.now().strftime('%H%M%S')}{_msg_counter:03d}"
 
-# ===============================
 # MLLP
-# ===============================
 
 def envolver_mllp(mensagem):
     return MLLP_START + mensagem.encode("utf-8") + MLLP_END
@@ -40,14 +35,11 @@ def remover_mllp(dados):
         dados = dados[:-2]
     return dados.decode("utf-8", errors="replace")
 
-# ===============================
 # CRIAÇÃO DE MENSAGENS HL7
-# ===============================
 
 def criar_cabecalho_msh(tipo_evento):
     agora = datetime.now().strftime("%Y%m%d%H%M%S")
     msg_id = gerar_msg_id()
-    # MSH-7 é data, MSH-8 é vazio, MSH-9 é tipo_evento, MSH-10 é msg_id
     return f"MSH|^~\\&|ProgramaA|Clinica|Mirth|Hospital|{agora}||{tipo_evento}|{msg_id}|P|2.5\r"
 
 def criar_pid(pid, nome, dob, sexo):
@@ -64,7 +56,7 @@ def criar_obr(order_id, codigo_exame, desc_exame):
     agora = datetime.now().strftime("%Y%m%d%H%M%S")
     return f"OBR|1|{order_id}|{order_id}|{codigo_exame}^{desc_exame}|{agora}\r"
 
-# ---- PEDIDO NOVO (NW) ----
+# PEDIDO NOVO (NW)
 def criar_pedido_novo(paciente, exame):
     order_id = gerar_order_id()
     msg  = criar_cabecalho_msh("ORM^O01")
@@ -74,7 +66,7 @@ def criar_pedido_novo(paciente, exame):
     msg += criar_obr(order_id, exame["codigo"], exame["descricao"])
     return msg, order_id
 
-# ---- CANCELAMENTO (CA) ----
+# CANCELAMENTO (CA)
 def criar_cancelamento(paciente, exame, order_id):
     msg  = criar_cabecalho_msh("ORM^O01")
     msg += criar_pid(paciente["pid"], paciente["nome"], paciente["dob"], paciente["sexo"])
@@ -83,7 +75,7 @@ def criar_cancelamento(paciente, exame, order_id):
     msg += criar_obr(order_id, exame["codigo"], exame["descricao"])
     return msg
 
-# ---- PEDIDO DE ANÁLISES (OML^O21) ----
+# PEDIDO DE ANÁLISES (OML^O21)
 def criar_pedido_analises(paciente, analise):
     order_id = gerar_order_id()
     msg  = criar_cabecalho_msh("OML^O21")
@@ -93,7 +85,7 @@ def criar_pedido_analises(paciente, analise):
     msg += criar_obr(order_id, analise["codigo"], analise["descricao"])
     return msg, order_id
 
-# ---- ADMISSÃO (ADT^A01) ----
+# ADMISSÃO (ADT^A01)
 def criar_admissao(paciente, tipo_visita="I"):
     agora = datetime.now().strftime("%Y%m%d%H%M%S")
     msg_id = gerar_msg_id()
@@ -103,9 +95,7 @@ def criar_admissao(paciente, tipo_visita="I"):
     msg += f"PV1||{tipo_visita}|INT\r"
     return msg
 
-# ===============================
 # ENVIO / RECEÇÃO
-# ===============================
 
 def enviar_para_mirth(mensagem):
     pacote = envolver_mllp(mensagem)
@@ -138,15 +128,34 @@ def tratar_relatorio(conn, addr):
             buffer += chunk
             if MLLP_END in buffer:
                 break
-        print("\n" + "="*50)
-        print("  RELATÓRIO RECEBIDO")
-        print("="*50)
-        print(remover_mllp(buffer))
-        print("="*50 + "\n")
+
+        mensagem = remover_mllp(buffer)
+
+        if "ORU^R01" in mensagem:
+            titulo = "RELATÓRIO DE RESULTADO RECEBIDO"
+            # Marcar pedido como realizado no histórico local
+            for linha in mensagem.split("\r"):
+                if linha.startswith("ORC"):
+                    partes = linha.split("|")
+                    if len(partes) > 2:
+                        oid = partes[2]
+                        if oid in pedidos_ativos:
+                            pedidos_ativos[oid]["estado"] = "REALIZADO"
+        elif "ADT^A01" in mensagem:
+            titulo = "CONFIRMAÇÃO DE ADMISSÃO RECEBIDA"
+        else:
+            titulo = "RESPOSTA RECEBIDA"
+
+        print("\n" + "="*52)
+        print(f"  {titulo}")
+        print("="*52)
+        print(mensagem)
+        print("="*52 + "\n")
         print("  > ", end="", flush=True)
 
-# Histórico de pedidos ativos (para cancelamentos)
-pedidos_ativos = {}  # order_id -> {paciente, exame/analise, tipo}
+# Histórico de pedidos ativos
+# { order_id: { "paciente", "exame"/"analise", "tipo", "estado": "PENDENTE"|"REALIZADO"|"CANCELADO", "enviado_em" } }
+pedidos_ativos = {}
 
 # ===============================
 # VALIDAÇÃO DE INPUT
@@ -155,7 +164,6 @@ pedidos_ativos = {}  # order_id -> {paciente, exame/analise, tipo}
 import re
 
 def pedir_campo(prompt, validar, msg_erro, transformar=None):
-    """Pede um campo em loop até o valor ser válido."""
     while True:
         valor = input(f"  {prompt}: ").strip()
         if validar(valor):
@@ -166,7 +174,6 @@ def validar_pid(v):
     return bool(re.fullmatch(r"\d{1,10}", v))
 
 def validar_nome(v):
-    # Aceita letras (incluindo acentuadas), espaços e hífens; mínimo 2 chars
     return bool(re.fullmatch(r"[A-Za-zÀ-ÖØ-öø-ÿ\- ]{2,60}", v))
 
 def validar_dob(v):
@@ -188,11 +195,9 @@ def validar_descricao(v):
     return len(v.strip()) >= 2
 
 def introduzir_paciente():
-    """Solicita os dados do paciente com validação em cada campo."""
     print("\n  DADOS DO PACIENTE")
-    print("  ─────────────────────────────────────────")
     nome = pedir_campo(
-        "Nome (ex: Maria Santos)",
+        "Nome",
         validar_nome,
         "Nome inválido. Use apenas letras, espaços e hífens (mín. 2 caracteres)."
     )
@@ -215,52 +220,41 @@ def introduzir_paciente():
     return {"pid": pid, "nome": nome, "dob": dob, "sexo": sexo}
 
 def introduzir_exame_imagiologia():
-    """Solicita a seleção de um exame de imagiologia pré-definido."""
     exames_disponiveis = {
         "1": {"codigo": "M10405", "descricao": "TORAX, UMA INCIDENCIA"},
         "2": {"codigo": "TAC01",  "descricao": "TAC ABDOMINAL"},
         "3": {"codigo": "ECO02",  "descricao": "ECOGRAFIA RENAL"},
-        "4": {"codigo": "M10",    "descricao": "MAMOGRAFIA BILATERAL"}
+        "4": {"codigo": "M10",    "descricao": "MAMOGRAFIA BILATERAL"},
     }
-
-    print("\n  SELECIONE O EXAME DE IMAGIOLOGIA")
-    print("  ─────────────────────────────────────────")
+    print("\n  Selecione o Exame")
     for tecla, info in exames_disponiveis.items():
         print(f"  [{tecla}] {info['descricao']} ({info['codigo']})")
-    
     opcao = pedir_campo(
         "Opção",
-        lambda v: v in exames_disponiveis.keys(),
+        lambda v: v in exames_disponiveis,
         "Opção inválida. Escolha um número da lista."
     )
-    
     return exames_disponiveis[opcao]
 
 def introduzir_analise():
-    """Solicita a seleção de uma análise clínica pré-definida."""
     analises_disponiveis = {
         "1": {"codigo": "25826", "descricao": "Ureia"},
         "2": {"codigo": "25813", "descricao": "Potassio"},
         "3": {"codigo": "HEM01", "descricao": "Hemoglobina"},
-        "4": {"codigo": "60996", "descricao": "Estudo bacteriologico"}
+        "4": {"codigo": "60996", "descricao": "Estudo bacteriologico"},
     }
-
     print("\n  SELECIONE A ANÁLISE CLÍNICA")
     print("  ─────────────────────────────────────────")
     for tecla, info in analises_disponiveis.items():
         print(f"  [{tecla}] {info['descricao']} ({info['codigo']})")
-    
     opcao = pedir_campo(
         "Opção",
-        lambda v: v in analises_disponiveis.keys(),
+        lambda v: v in analises_disponiveis,
         "Opção inválida. Escolha um número da lista."
     )
-    
     return analises_disponiveis[opcao]
 
-# ===============================
 # MENUS
-# ===============================
 
 def limpar():
     print("\033[2J\033[H", end="")
@@ -272,14 +266,12 @@ def cabecalho():
 
 def menu_principal():
     print("  MENU PRINCIPAL")
-    print("  ─────────────────────────────────────────")
     print("  [1] Novo pedido de exame (imagiologia)")
     print("  [2] Novo pedido de análises clínicas")
     print("  [3] Cancelar pedido existente")
     print("  [4] Registar admissão de doente")
-    print("  [5] Ver histórico de pedidos ativos")
+    print("  [5] Ver histórico de pedidos")
     print("  [0] Sair")
-    print("  ─────────────────────────────────────────")
     return input("  Opção: ").strip()
 
 def mostrar_mensagem_hl7(mensagem, titulo="MENSAGEM HL7 ENVIADA"):
@@ -289,21 +281,18 @@ def mostrar_mensagem_hl7(mensagem, titulo="MENSAGEM HL7 ENVIADA"):
     print(f"  └{'─'*50}")
 
 def ver_pedidos_ativos():
-    print("\n  PEDIDOS ATIVOS")
-    print("  ─────────────────────────────────────────")
+    print("\n  Histórico de Pedidos")
     if not pedidos_ativos:
-        print("  (nenhum pedido ativo)")
+        print("  (nenhum pedido registado)")
     else:
         for oid, info in pedidos_ativos.items():
-            pac = info["paciente"]["nome"]
-            tipo = info["tipo"]
-            desc = info.get("exame", info.get("analise", {})).get("descricao", "?")
-            print(f"  [{oid}]  {pac}  —  {tipo}  —  {desc}")
-    print("  ─────────────────────────────────────────")
+            pac    = info["paciente"]["nome"]
+            tipo   = info["tipo"]
+            desc   = info.get("exame", info.get("analise", {})).get("descricao", "?")
+            estado = info.get("estado", "PENDENTE")
+            print(f"  [{oid}]  {pac}  —  {tipo}  —  {desc}  —  {estado}")
 
-# ===============================
 # AÇÕES
-# ===============================
 
 def acao_novo_exame_imagiologia():
     paciente = introduzir_paciente()
@@ -313,8 +302,15 @@ def acao_novo_exame_imagiologia():
     mostrar_mensagem_hl7(mensagem)
     input("\n  Prima Enter para enviar...")
     if enviar_para_mirth(mensagem):
-        pedidos_ativos[order_id] = {"paciente": paciente, "exame": exame, "tipo": "Imagiologia"}
-        print(f"\n  [OK] Pedido enviado com sucesso! Order ID: {order_id}")
+        pedidos_ativos[order_id] = {
+            "paciente": paciente,
+            "exame": exame,
+            "tipo": "Imagiologia",
+            "estado": "PENDENTE",
+            "enviado_em": datetime.now(),
+        }
+        print(f"\n  [OK] Pedido enviado! Order ID: {order_id}")
+        print(f"  [INFO] Pode cancelar o pedido.")
 
 def acao_novo_pedido_analises():
     paciente = introduzir_paciente()
@@ -324,19 +320,37 @@ def acao_novo_pedido_analises():
     mostrar_mensagem_hl7(mensagem)
     input("\n  Prima Enter para enviar...")
     if enviar_para_mirth(mensagem):
-        pedidos_ativos[order_id] = {"paciente": paciente, "analise": analise, "tipo": "Análises"}
-        print(f"\n  [OK] Pedido enviado com sucesso! Order ID: {order_id}")
+        pedidos_ativos[order_id] = {
+            "paciente": paciente,
+            "analise": analise,
+            "tipo": "Análises",
+            "estado": "PENDENTE",
+            "enviado_em": datetime.now(),
+        }
+        print(f"\n  [OK] Pedido enviado! Order ID: {order_id}")
+        print(f"  [INFO] Pode cancelar o pedido.")
 
 def acao_cancelar_pedido():
     ver_pedidos_ativos()
     if not pedidos_ativos:
         return
-    order_id = input("\n  Introduza o Order ID a cancelar: ").strip()
+
+    order_id = input("\n  Introduza o Order ID a cancelar: ").strip().strip("[]")
     if order_id not in pedidos_ativos:
         print("  [ERRO] Order ID não encontrado.")
         return
 
     info = pedidos_ativos[order_id]
+
+    # Verificar estado local
+    estado = info.get("estado", "PENDENTE")
+    if estado == "REALIZADO":
+        print("  [ERRO] Este exame já foi realizado. Não é possível cancelar.")
+        return
+    if estado == "CANCELADO":
+        print("  [AVISO] Este pedido já foi cancelado anteriormente.")
+        return
+
     paciente = info["paciente"]
     exame = info.get("exame", info.get("analise"))
 
@@ -344,8 +358,9 @@ def acao_cancelar_pedido():
     mostrar_mensagem_hl7(mensagem, titulo="CANCELAMENTO HL7")
     input("\n  Prima Enter para enviar o cancelamento...")
     if enviar_para_mirth(mensagem):
-        del pedidos_ativos[order_id]
+        pedidos_ativos[order_id]["estado"] = "CANCELADO"
         print(f"\n  [OK] Pedido {order_id} cancelado com sucesso!")
+        print("  [INFO] Nenhum relatório será gerado para este pedido.")
 
 def acao_admissao():
     paciente = introduzir_paciente()
@@ -366,15 +381,12 @@ def acao_admissao():
     if enviar_para_mirth(mensagem):
         print(f"\n  [OK] Admissão registada com sucesso!")
 
-# ===============================
 # MAIN
-# ===============================
 
 if __name__ == "__main__":
     limpar()
     cabecalho()
 
-    # Iniciar thread de escuta de relatórios
     thread_rel = threading.Thread(target=escutar_relatorio, daemon=True)
     thread_rel.start()
     time.sleep(0.5)
