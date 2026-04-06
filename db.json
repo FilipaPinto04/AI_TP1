@@ -1,0 +1,195 @@
+{
+  "pacientes": {
+    "234567": {
+      "pid": "234567",
+      "nome": "Filipa",
+      "dob": "19900101",
+      "sexo": "F",
+      "registado_em": "2026-04-07T00:23:12.005796"
+    },
+    "345678": {
+      "pid": "345678",
+      "nome": "Joana",
+      "dob": "20040131",
+      "sexo": "F",
+      "registado_em": "2026-04-07T00:25:19.577210"
+    },
+    "76543": {
+      "pid": "76543",
+      "nome": "Guilherme",
+      "dob": "20040508",
+      "sexo": "M",
+      "registado_em": "2026-04-07T00:33:23.449134"
+    },
+    "45678": {
+      "pid": "45678",
+      "nome": "Eva",
+      "dob": "20040216",
+      "sexo": "F",
+      "registado_em": "2026-04-07T00:35:09.949115"
+    },
+    "465342": {
+      "pid": "465342",
+      "nome": "Catarina",
+      "dob": "19900101",
+      "sexo": "F",
+      "registado_em": "2026-04-07T00:45:55.874210"
+    },
+    "556677": {
+      "pid": "556677",
+      "nome": "Ricardo Mendes",
+      "dob": "19850312",
+      "sexo": "M",
+      "registado_em": "2026-04-07T08:15:00.000000"
+    },
+    "889900": {
+      "pid": "889900",
+      "nome": "Beatriz Santos",
+      "dob": "19721125",
+      "sexo": "F",
+      "registado_em": "2026-04-07T09:30:45.123456"
+    },
+    "112233": {
+      "pid": "112233",
+      "nome": "Tiago Ferreira",
+      "dob": "19980714",
+      "sexo": "M",
+      "registado_em": "2026-04-07T10:05:22.987654"
+    },
+    "445566": {
+      "pid": "445566",
+      "nome": "Sofia Oliveira",
+      "dob": "19650530",
+      "sexo": "F",
+      "registado_em": "2026-04-07T11:40:10.555444"
+    }
+  },
+  "pedidos": {
+    "EX002550000": {
+      "order_id": "EX002550000",
+      "pid": "234567",
+      "nome_paciente": "Filipa",
+      "tipo": "Imagiologia",
+      "exame": {
+        "codigo": "TAC01",
+        "descricao": "TAC ABDOMINAL"
+      },
+      "estado": "REALIZADO",
+      "enviado_em": "2026-04-07T00:25:51.783966",
+      "realizado_em": "2026-04-07T00:26:44.549294",
+      "relatorio": "MSH|^~\\&|ProgB|Lab|Mirth|Clin|20260407002640||ORU^R01|RPT01|P|2.5\rPID|1||234567||Filipa||19900101|F\rOBR|1|EX002550000||TAC01^TAC ABDOMINAL\rOBX|1|TX|RESULTADO||Sem alterações significativas.|||F"
+    },
+    "EX002620001": {
+      "order_id": "EX002620001",
+      "pid": "345678",
+      "nome_paciente": "Joana",
+      "tipo": "Análises",
+      "exame": {
+        "codigo": "HEM01",
+        "descricao": "Hemoglobina"
+      },
+      "estado": "REALIZADO",
+      "enviado_em": "2026-04-07T00:26:21.280336",
+      "realizado_em": "2026-04-07T00:38:26.763692",
+      "relatorio": "MSH|^~\\&|ProgB|Lab|Mirth|Clin|20260407003826||ORU^R01|RPT02|P|2.5\rPID|1||345678||Joana||20040131|F\rOBX|1|NM|HEM01^Hemoglobina||13.5|g/dL|12.0-16.0|N|||F"
+    },
+    "EX003523001": {
+      "order_id": "EX003523001",
+      "pid": "45678",
+      "nome_paciente": "Eva",
+      "tipo": "Imagiologia",
+      "exame": {
+        "codigo": "M10405",
+        "descricao": "TORAX, UMA INCIDENCIA"
+      },
+      "estado": "CANCELADO",
+      "enviado_em": "2026-04-07T00:35:24.955816",
+      "realizado_em": null,
+      "relatorio": null
+    },
+    "EX004605003": {
+      "order_id": "EX004605003",
+      "pid": "45678",
+      "nome_paciente": "Eva",
+      "tipo": "Imagiologia",
+      "exame": {
+        "codigo": "M10",
+        "descricao": "MAMOGRAFIA BILATERAL"
+      },
+      "estado": "PENDENTE",
+      "enviado_em": "2026-04-07T00:46:11.810500",
+      "realizado_em": null,
+      "relatorio": null
+    },
+    "EX008000005": {
+      "order_id": "EX008000005",
+      "pid": "556677",
+      "nome_paciente": "Ricardo Mendes",
+      "tipo": "Cardiologia",
+      "exame": {
+        "codigo": "ECG01",
+        "descricao": "Eletrocardiograma de 12 derivações"
+      },
+      "estado": "REALIZADO",
+      "enviado_em": "2026-04-07T08:30:00.000000",
+      "realizado_em": "2026-04-07T08:45:00.000000",
+      "relatorio": "MSH|^~\\&|ProgB|Cardio|Mirth|Clin|20260407084500||ORU^R01|RPT03|P|2.5\rPID|1||556677||Ricardo Mendes||19850312|M\rOBX|1|TX|ECG||Ritmo sinusal regular. Frequência cardíaca de 72 bpm.|||F"
+    },
+    "EX009000006": {
+      "order_id": "EX009000006",
+      "pid": "889900",
+      "nome_paciente": "Beatriz Santos",
+      "tipo": "Análises",
+      "exame": {
+        "codigo": "GLU01",
+        "descricao": "Glicémia em Jejum"
+      },
+      "estado": "PENDENTE",
+      "enviado_em": "2026-04-07T09:45:00.000000",
+      "realizado_em": null,
+      "relatorio": null
+    },
+    "EX010000007": {
+      "order_id": "EX010000007",
+      "pid": "112233",
+      "nome_paciente": "Tiago Ferreira",
+      "tipo": "Imagiologia",
+      "exame": {
+        "codigo": "RX01",
+        "descricao": "RX Joelho Direito"
+      },
+      "estado": "REALIZADO",
+      "enviado_em": "2026-04-07T10:15:00.000000",
+      "realizado_em": "2026-04-07T10:50:00.000000",
+      "relatorio": "MSH|^~\\&|ProgB|Imago|Mirth|Clin|20260407105000||ORU^R01|RPT04|P|2.5\rPID|1||112233||Tiago Ferreira||19980714|M\rOBX|1|TX|RAIOX||Fratura não evidenciada. Espaço articular conservado.|||F"
+    },
+    "EX011000008": {
+      "order_id": "EX011000008",
+      "pid": "445566",
+      "nome_paciente": "Sofia Oliveira",
+      "tipo": "Gastroenterologia",
+      "exame": {
+        "codigo": "ENDO01",
+        "descricao": "Endoscopia Digestiva Alta"
+      },
+      "estado": "PENDENTE",
+      "enviado_em": "2026-04-07T11:50:00.000000",
+      "realizado_em": null,
+      "relatorio": null
+    },
+    "EX012000009": {
+      "order_id": "EX012000009",
+      "pid": "76543",
+      "nome_paciente": "Guilherme",
+      "tipo": "Análises",
+      "exame": {
+        "codigo": "COL01",
+        "descricao": "Colesterol Total"
+      },
+      "estado": "REALIZADO",
+      "enviado_em": "2026-04-07T12:00:00.000000",
+      "realizado_em": "2026-04-07T12:30:00.000000",
+      "relatorio": "MSH|^~\\&|ProgB|Lab|Mirth|Clin|20260407123000||ORU^R01|RPT05|P|2.5\rPID|1||76543||Guilherme||20040508|M\rOBX|1|NM|COL01^Colesterol||185|mg/dL|<190|N|||F"
+    }
+  }
+}
