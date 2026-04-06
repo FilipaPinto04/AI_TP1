@@ -5,27 +5,25 @@ import random
 import json
 import os
 from datetime import datetime
- 
+
 # CONFIGURAÇÃO
 HOST_LOCAL = "127.0.0.1"
 PORTA_RECEBER_PEDIDO = 6000
- 
+
 MIRTH_HOST = "127.0.0.1"
 MIRTH_PORTA_RELATORIO = 5101
- 
+
 MLLP_START = b"\x0b"
 MLLP_END = b"\x1c\x0d"
- 
+
 DB_PATH = "db.json"
- 
+
 # Fila de Pedidos Pendentes em memória
 fila_pedidos = {}
 fila_lock = threading.Lock()
- 
-# ===============================
+
 # BASE DE DADOS JSON
-# ===============================
- 
+
 def carregar_db():
     """Carrega a base de dados do ficheiro JSON. Cria estrutura vazia se não existir."""
     if not os.path.exists(DB_PATH):
@@ -36,7 +34,7 @@ def carregar_db():
     except (json.JSONDecodeError, IOError):
         print(f"  [AVISO] Erro ao ler {DB_PATH}. A iniciar base de dados vazia.")
         return {"pacientes": {}, "pedidos": {}}
- 
+
 def guardar_db(db):
     """Guarda a base de dados no ficheiro JSON."""
     try:
@@ -44,7 +42,7 @@ def guardar_db(db):
             json.dump(db, f, ensure_ascii=False, indent=2)
     except IOError as e:
         print(f"  [ERRO] Não foi possível guardar a base de dados: {e}")
- 
+
 def atualizar_estado_pedido_db(order_id, estado, relatorio=None):
     """Atualiza o estado de um pedido na base de dados JSON."""
     db = carregar_db()
@@ -55,7 +53,7 @@ def atualizar_estado_pedido_db(order_id, estado, relatorio=None):
         if relatorio:
             db["pedidos"][order_id]["relatorio"] = relatorio
         guardar_db(db)
- 
+
 def registar_pedido_db_se_novo(order_id, info):
     """Regista um pedido na DB se ainda não existir (para pedidos que chegam só pelo Mirth)."""
     db = carregar_db()
@@ -75,15 +73,15 @@ def registar_pedido_db_se_novo(order_id, info):
             "relatorio": None
         }
         guardar_db(db)
- 
+
 def listar_pacientes_db():
     db = carregar_db()
     return db.get("pacientes", {})
- 
+
 def pedidos_por_paciente_db(pid):
     db = carregar_db()
     return {oid: p for oid, p in db.get("pedidos", {}).items() if p.get("pid") == pid}
- 
+
 # ===============================
 # MLLP
 # ===============================
