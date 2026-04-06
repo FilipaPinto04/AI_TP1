@@ -27,13 +27,16 @@ fila_lock = threading.Lock()
 def carregar_db():
     """Carrega a base de dados do ficheiro JSON. Cria estrutura vazia se não existir."""
     if not os.path.exists(DB_PATH):
-        return {"pacientes": {}, "pedidos": {}}
+        return {"pacientes": {}, "pedidos": {}, "admissoes": 0}
     try:
         with open(DB_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+            db = json.load(f)
+            if "admissoes" not in db:
+                db["admissoes"] = 0
+            return db
     except (json.JSONDecodeError, IOError):
         print(f"  [AVISO] Erro ao ler {DB_PATH}. A iniciar base de dados vazia.")
-        return {"pacientes": {}, "pedidos": {}}
+        return {"pacientes": {}, "pedidos": {}, "admissoes": 0}
 
 def guardar_db(db):
     """Guarda a base de dados no ficheiro JSON."""
@@ -42,6 +45,12 @@ def guardar_db(db):
             json.dump(db, f, ensure_ascii=False, indent=2)
     except IOError as e:
         print(f"  [ERRO] Não foi possível guardar a base de dados: {e}")
+
+def registar_admissao_db():
+    """Incrementa o contador de admissões na base de dados."""
+    db = carregar_db()
+    db["admissoes"] = db.get("admissoes", 0) + 1
+    guardar_db(db)
 
 def atualizar_estado_pedido_db(order_id, estado, relatorio=None):
     """Atualiza o estado de um pedido na base de dados JSON."""
@@ -210,10 +219,6 @@ def enviar_para_mirth(mensagem):
         print("  [ERRO] Não foi possível ligar ao Mirth. Canal ativo?")
         return False
 
-# ESTATÍSTICAS
-
-stats = {"recebidos": 0, "enviados": 0, "cancelamentos": 0, "admissoes": 0, "erros": 0}
-
 # PROCESSAMENTO DE MENSAGENS
 
 def processar_mensagem(dados_raw, addr):
@@ -235,11 +240,9 @@ def processar_mensagem(dados_raw, addr):
             entrada = fila_pedidos.get(order_id)
             if not entrada:
                 print(f"\n  [AVISO] Cancelamento para order_id desconhecido: {order_id}\n")
-                stats["erros"] += 1
                 return
             if entrada["estado"] == "REALIZADO":
                 print(f"\n  [REJEITADO] Exame {order_id} já foi realizado. Cancelamento impossível.\n")
-                stats["erros"] += 1
                 return
             if entrada["estado"] == "CANCELADO":
                 print(f"\n  [AVISO] Pedido {order_id} já estava cancelado.\n")
@@ -247,21 +250,16 @@ def processar_mensagem(dados_raw, addr):
             entrada["estado"] = "CANCELADO"
 
         atualizar_estado_pedido_db(order_id, "CANCELADO")
-        stats["cancelamentos"] += 1
         print(f"\n  [CANCELAMENTO] Pedido {order_id} cancelado. Nenhum relatório será gerado.\n")
 
     elif "ADT" in tipo_msg:
-        stats["recebidos"] += 1
-        stats["admissoes"] += 1
         resposta = criar_ack_admissao(info)
+        registar_admissao_db()
         print(f"\n  [ADMISSÃO] {info['nome']} (PID: {info['pid']})")
         if enviar_para_mirth(resposta):
             print("  [OK] Confirmação de admissão enviada.\n")
-        else:
-            stats["erros"] += 1
 
     elif acao in ("NW", "") and tipo_msg in ("ORM^O01", "OML^O21", ""):
-        stats["recebidos"] += 1
         with fila_lock:
             fila_pedidos[order_id] = {
                 "info": info,
@@ -277,7 +275,6 @@ def processar_mensagem(dados_raw, addr):
 
     else:
         print(f"  [AVISO] Mensagem não reconhecida: tipo={tipo_msg}, acao={acao}")
-        stats["erros"] += 1
 
 def tratar_conexao(conn, addr):
     with conn:
@@ -379,13 +376,11 @@ def realizar_exames_pendentes():
 
         if enviar_para_mirth(relatorio):
             print(f"  [OK] Relatório enviado ao Mirth.\n")
-            stats["enviados"] += 1
             atualizar_estado_pedido_db(oid, "REALIZADO", relatorio=relatorio)
         else:
             with fila_lock:
                 fila_pedidos[oid]["estado"] = "PENDENTE"
             print(f"  [ERRO] Falha no envio. Pedido {oid} revertido para PENDENTE.\n")
-            stats["erros"] += 1
 
 def ver_pedidos_por_paciente():
     """Mostra todos os pedidos e relatórios de um paciente específico."""
@@ -436,26 +431,34 @@ def ver_pedidos_por_paciente():
                 print("  └" + "─"*51)
 
 def mostrar_stats():
-    print("\n  Estatísticas de Operações")
-    with fila_lock:
-        pendentes  = sum(1 for v in fila_pedidos.values() if v["estado"] == "PENDENTE")
-        realizados = sum(1 for v in fila_pedidos.values() if v["estado"] == "REALIZADO")
-        cancelados = sum(1 for v in fila_pedidos.values() if v["estado"] == "CANCELADO")
+    print("\n  Estatísticas Gerais (Base de Dados)")
+    print("  " + "─"*46)
 
     db = carregar_db()
-    total_pedidos_db = len(db.get("pedidos", {}))
-    total_pacientes  = len(db.get("pacientes", {}))
+    pedidos    = db.get("pedidos", {})
+    pacientes  = db.get("pacientes", {})
 
-    print(f"  Estatísticas:")
-    print(f"  Pedidos recebidos  : {stats['recebidos']}")
-    print(f"  — Em espera        : {pendentes}")
-    print(f"  — Realizados       : {realizados}")
-    print(f"  — Cancelados       : {cancelados}")
-    print(f"  Relatórios enviados: {stats['enviados']}")
-    print(f"  Admissões          : {stats['admissoes']}")
-    print(f"  Erros / Rejeitados : {stats['erros']}")
-    print(f"  Pacientes registados : {total_pacientes}")
-    print(f"  Pedidos totais (DB)  : {total_pedidos_db}")
+    total_pedidos  = len(pedidos)
+    total_pacientes = len(pacientes)
+
+    pendentes  = sum(1 for p in pedidos.values() if p.get("estado") == "PENDENTE")
+    realizados = sum(1 for p in pedidos.values() if p.get("estado") == "REALIZADO")
+    cancelados = sum(1 for p in pedidos.values() if p.get("estado") == "CANCELADO")
+
+    imagiologia = sum(1 for p in pedidos.values() if p.get("tipo") == "Imagiologia")
+    analises    = sum(1 for p in pedidos.values() if p.get("tipo") == "Análises")
+
+    admissoes   = db.get("admissoes", 0)
+
+    print(f"  Pacientes registados     : {total_pacientes}")
+    print(f"  Admissões registadas     : {admissoes}")
+    print(f"  Pedidos totais           : {total_pedidos}")
+    print(f"  — Pendentes              : {pendentes}")
+    print(f"  — Realizados             : {realizados}")
+    print(f"  — Cancelados             : {cancelados}")
+    print(f"  Pedidos de imagiologia   : {imagiologia}")
+    print(f"  Pedidos de análises      : {analises}")
+    print("  " + "─"*46)
 
 # MENU
 
