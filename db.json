@@ -1,0 +1,27 @@
+{
+  "pacientes": {
+    "23456": {
+      "pid": "23456",
+      "nome": "fdvd",
+      "dob": "19900101",
+      "sexo": "M",
+      "registado_em": "2026-04-06T23:37:50.355369"
+    }
+  },
+  "pedidos": {
+    "EX233807000": {
+      "order_id": "EX233807000",
+      "pid": "23456",
+      "nome_paciente": "fdvd",
+      "tipo": "Imagiologia",
+      "exame": {
+        "codigo": "M10405",
+        "descricao": "TORAX, UMA INCIDENCIA"
+      },
+      "estado": "REALIZADO",
+      "enviado_em": "2026-04-06T23:38:08.832325",
+      "realizado_em": "2026-04-06T23:38:55.255142",
+      "relatorio": "MSH|^~\\&|ProgramaB|Laboratorio|Mirth|Clinica|20260406233855||ORU^R01|RPT20260406233855|P|2.5\rPID|1||23456||fdvd||19900101|M\rORC|RE|EX233807000|EX233807000||CM||||20260406233855\rOBR|1|EX233807000|EX233807000|M10405^TORAX, UMA INCIDENCIA|20260406233855|||||||||||||||||||||||||||F\rOBX|1|TX|RESULTADO||Imagem compatível com variante da normalidade. Sem sinais de patologia aguda.||||||F|||20260406233855\rOBX|2|TX|CONCLUSAO||Exame validado pelo especialista.||||||F|||20260406233855\r"
+    }
+  }
+}
