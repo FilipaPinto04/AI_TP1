@@ -191,5 +191,6 @@
       "realizado_em": "2026-04-07T12:30:00.000000",
       "relatorio": "MSH|^~\\&|ProgB|Lab|Mirth|Clin|20260407123000||ORU^R01|RPT05|P|2.5\rPID|1||76543||Guilherme||20040508|M\rOBX|1|NM|COL01^Colesterol||185|mg/dL|<190|N|||F"
     }
-  }
+  },
+  "admissoes": 1
 }
